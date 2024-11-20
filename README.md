@@ -1,8 +1,8 @@
-# Alzheimer Feature Selection Genetic with Genetic Algorithm
+# Hyperparameter Tuning with Alzheimer Dataset
 
 ## Introduction
 
-This project is a feature selection using Genetic Algorithm to select the best features for Alzheimer's disease classification. This project shows a dashboard to visualize the results of the feature selection process using mealpy library.
+This project is about tuning the machine learning hyperparameter in alzheimer dataset using Metaheuristic Optimization
 
 ## How to run the code
 1. Clone the repository

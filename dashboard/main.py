@@ -321,335 +321,149 @@ def hyperparameter_tuning(data, algo_ml, algo_meta, epoch=100, pop_size=100, max
 def main():
     st.title("Machine Learning Hyperparameter Tuning")
     st.sidebar.title("Dataset Selection")
-    dataset_option = st.sidebar.radio("Choose Dataset", ["Upload Dataset", "Use Default Dataset"])
-    if dataset_option == "Upload Dataset":
-        # Dataset Upload
-        st.sidebar.header("Dataset Upload")
-        uploaded_file = st.sidebar.file_uploader(
-            "Upload Your Dataset (CSV Format)", type=["csv"]
+    dataset = st.sidebar.selectbox(
+            "Choose a Dataset",
+            options=["Alzheimer", "else", "else2"],
+            index=0
+        )
+    if dataset == 'Alzheimer':
+        Data = pd.read_csv('data/alzheimers_disease_data.csv')
+        st.write("Preview of Dataset:")
+        st.dataframe(Data.head())
+        st.sidebar.subheader("Data Settings")
+        with st.sidebar.expander("Choose Features and Target", expanded=True):
+            columns = Data.columns.tolist()
+            feature_cols = st.multiselect(
+                "Select Feature Columns", columns, default=columns[:-1]
+            )
+            target_col = st.selectbox(
+                "Select Target Column", [""] + columns, index=len(columns)
+            )
+            
+            if not feature_cols or not target_col:
+                st.sidebar.warning("Please select features and target to proceed.")
+                return
+
+        # Advanced Data Settings
+        with st.sidebar.expander("Advanced Data Settings", expanded=False):
+            scaling_option = st.selectbox(
+                "Choose Scaling Method",
+                options=["None", "Standard Scaling", "Min-Max Scaling", "Robust Scaling"],
+                index=0
+            )
+
+        # Data Preprocessing
+        X = Data[feature_cols]
+        y = Data[target_col]
+        
+        # Scaling
+        if scaling_option != "None":
+            from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+
+            scalers = {
+                "Standard Scaling": StandardScaler(),
+                "Min-Max Scaling": MinMaxScaler(),
+                "Robust Scaling": RobustScaler()
+            }
+            scaler = scalers[scaling_option]
+            X = scaler.fit_transform(X)
+            st.sidebar.success(f"{scaling_option} applied successfully!")
+
+        # Train-Test Split
+        from sklearn.model_selection import train_test_split
+        X_train_scaled, X_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        data = {
+            "X_train": X_train_scaled,
+            "X_test": X_test_scaled,
+            "y_train": y_train,
+            "y_test": y_test
+        }
+
+        # Sidebar for Algorithm Selection
+        st.sidebar.header("Algorithm Configuration")
+        algo_ml = st.sidebar.selectbox(
+            "Choose a Machine Learning Algorithm",
+            options=["SGD", "Perceptron","Nearest Centroid", "Bagging Clasifier", "Decision Tree"],
+            index=0
+        )
+        algo_meta = st.sidebar.selectbox(
+            "Choose a Metaheuristic Algorithm",
+            options=["SMA", "HBO", "AO", 'GWO', "BA"],
+            index=0
         )
 
-        if uploaded_file:
-            data_loaded = True
-            Data = pd.read_csv(uploaded_file)
-            st.sidebar.success("Dataset loaded successfully!")
-            st.write("Preview of Dataset:")
-            st.dataframe(Data.head())
-        else:
-            data_loaded = False
-            st.sidebar.warning("No dataset uploaded.")
-
-        if data_loaded:
-            # Feature and Target Selection
-            st.sidebar.subheader("Data Settings")
-            with st.sidebar.expander("Choose Features and Target", expanded=True):
-                columns = Data.columns.tolist()
-                feature_cols = st.multiselect(
-                    "Select Feature Columns", columns, default=columns[:-1]
-                )
-                target_col = st.selectbox(
-                    "Select Target Column", [""] + columns, index=len(columns)
-                )
-                
-                if not feature_cols or not target_col:
-                    st.sidebar.warning("Please select features and target to proceed.")
-                    return
-
-            # Advanced Data Settings
-            with st.sidebar.expander("Advanced Data Settings", expanded=False):
-                scaling_option = st.selectbox(
-                    "Choose Scaling Method",
-                    options=["None", "Standard Scaling", "Min-Max Scaling", "Robust Scaling"],
-                    index=0
-                )
-                apply_dim_reduction = st.checkbox("Apply Dimensionality Reduction?")
-                if apply_dim_reduction:
-                    dim_reduction_method = st.selectbox(
-                        "Dimensionality Reduction Method", options=["PCA", "t-SNE"], index=0
-                    )
-                    n_components = st.number_input(
-                        "Number of Components", min_value=1, max_value=len(feature_cols), value=2, step=1
-                    )
-
-            # Data Preprocessing
-            X = Data[feature_cols]
-            y = Data[target_col]
-            
-            # Scaling
-            if scaling_option != "None":
-                from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-
-                scalers = {
-                    "Standard Scaling": StandardScaler(),
-                    "Min-Max Scaling": MinMaxScaler(),
-                    "Robust Scaling": RobustScaler()
-                }
-                scaler = scalers[scaling_option]
-                X = scaler.fit_transform(X)
-                st.sidebar.success(f"{scaling_option} applied successfully!")
-
-            # Dimensionality Reduction
-            if apply_dim_reduction:
-                from sklearn.decomposition import PCA
-                from sklearn.manifold import TSNE
-
-                if dim_reduction_method == "PCA":
-                    dr_model = PCA(n_components=n_components)
-                elif dim_reduction_method == "t-SNE":
-                    dr_model = TSNE(n_components=n_components)
-                X = dr_model.fit_transform(X)
-                st.sidebar.success(f"{dim_reduction_method} with {n_components} components applied!")
-
-            # Train-Test Split
-            from sklearn.model_selection import train_test_split
-            X_train_scaled, X_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            data = {
-                "X_train": X_train_scaled,
-                "X_test": X_test_scaled,
-                "y_train": y_train,
-                "y_test": y_test
-            }
-
-            # Sidebar for Algorithm Selection
-            st.sidebar.header("Algorithm Configuration")
-            algo_ml = st.sidebar.selectbox(
-                "Choose a Machine Learning Algorithm",
-                options=["SGD", "Perceptron","Nearest Centroid", "Bagging Clasifier", "Decision Tree"],
+        # Advanced Algorithm Settings
+        with st.sidebar.expander("Advanced Algorithm Settings", expanded=False):
+            epoch = st.number_input(
+                "Number of Epochs", min_value=1, max_value=1000, value=3, step=1
+            )
+            pop_size = st.number_input(
+                "Population Size", min_value=10, max_value=1000, value=100, step=10
+            )
+            max_early_stop = st.number_input(
+                "Max Early Stop", min_value=1, max_value=100, value=10, step=1
+            )
+            mode = st.selectbox(
+                "Optimization Mode",
+                options=["single", "thread"],
                 index=0
             )
-            algo_meta = st.sidebar.selectbox(
-                "Choose a Metaheuristic Algorithm",
-                options=["SMA", "HBO", "AO", 'GWO', "BA"],
-                index=0
+            n_worker = st.number_input(
+                "Number of Workers", min_value=1, max_value=10, value=1, step=1
             )
 
-            # Advanced Algorithm Settings
-            with st.sidebar.expander("Advanced Algorithm Settings", expanded=False):
-                epoch = st.number_input(
-                    "Number of Epochs", min_value=1, max_value=1000, value=3, step=1
-                )
-                pop_size = st.number_input(
-                    "Population Size", min_value=10, max_value=1000, value=100, step=10
-                )
-                max_early_stop = st.number_input(
-                    "Max Early Stop", min_value=1, max_value=100, value=10, step=1
-                )
-                mode = st.selectbox(
-                    "Optimization Mode",
-                    options=["single", "thread"],
-                    index=0
-                )
-                n_worker = st.number_input(
-                    "Number of Workers", min_value=1, max_value=10, value=1, step=1
-                )
+        # Start Button
+        if st.sidebar.button("Start Hyperparameter Tuning"):
+            st.markdown(f"### Running with `{algo_ml}` and `{algo_meta}`")
 
-            # Start Button
-            if st.sidebar.button("Start Hyperparameter Tuning"):
-                st.markdown(f"### Running with `{algo_ml}` and `{algo_meta}`")
+            # Hyperparameter tuning logic here (reusing previous implementation)
+                    # Hyperparameter tuning
+            model = hyperparameter_tuning(
+                data=data, algo_ml=algo_ml, algo_meta=algo_meta,
+                epoch=epoch, pop_size=pop_size, max_early_stop=max_early_stop,
+                mode=mode, n_worker=n_worker
+            )
 
-                # Hyperparameter tuning logic here (reusing previous implementation)
-                        # Hyperparameter tuning
-                model_sgd = hyperparameter_tuning(
-                    data=data, algo_ml=algo_ml, algo_meta=algo_meta,
-                    epoch=epoch, pop_size=pop_size, max_early_stop=max_early_stop,
-                    mode=mode, n_worker=n_worker
-                )
-
-                # Decode parameters and train the final model
-                param = model_sgd.problem.decode_solution(model_sgd.g_best.solution)
+            # Decode parameters and train the final model
+            param = model.problem.decode_solution(model.g_best.solution)
+            if algo_ml == 'SGD':
                 model_fix = SGDClassifier(loss=param['loss'], alpha=param['alpha'], l1_ratio=param['l1_ratio'], penalty=param['penalty'], random_state=55)
-                model_fix.fit(data["X_train"], data["y_train"])
-                y_pred = model_fix.predict(data["X_test"])
+            if algo_ml == 'Perceptron':
+                model_fix = Perceptron()
+            if algo_ml == 'Decision Tree':
+                model_fix = DecisionTreeClassifier()
+            if algo_ml =='Bagging Clasifier':
+                model_fix = BaggingClassifier()
+            if algo_ml == 'Nearest Centroid':
+                model_fix = NearestCentroid()
+            model_fix.fit(data["X_train"], data["y_train"])
+            y_pred = model_fix.predict(data["X_test"])
 
-                # Model Evaluation Section
-                st.subheader("Model Evaluation")
-                st.markdown("#### Best Hyperparameters")
-                st.write(param)
+            # Model Evaluation Section
+            st.subheader("Model Evaluation")
+            st.markdown("#### Best Hyperparameters")
+            st.write(param)
 
-                st.markdown("#### Classification Report")
-                report = classification_report(y_test, y_pred, output_dict=True)
-                report_df = pd.DataFrame(report).transpose()
-                st.dataframe(report_df.style.format(precision=2))
+            st.markdown("#### Classification Report")
+            report = classification_report(y_test, y_pred, output_dict=True)
+            report_df = pd.DataFrame(report).transpose()
+            st.dataframe(report_df.style.format(precision=2))
 
-                st.markdown("#### Confusion Matrix")
-                conf_matrix = confusion_matrix(y_test, y_pred)
-                fig, ax = plt.subplots(figsize=(6, 4))
-                sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
-                ax.set_title("Confusion Matrix")
-                ax.set_xlabel("Predicted Labels")
-                ax.set_ylabel("True Labels")
-                st.pyplot(fig)
+            st.markdown("#### Confusion Matrix")
+            conf_matrix = confusion_matrix(y_test, y_pred)
+            fig, ax = plt.subplots(figsize=(6, 4))
+            sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
+            ax.set_title("Confusion Matrix")
+            ax.set_xlabel("Predicted Labels")
+            ax.set_ylabel("True Labels")
+            st.pyplot(fig)
 
-                st.markdown(f"#### Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+            st.markdown(f"#### Accuracy: {accuracy_score(y_test, y_pred):.4f}")
 
-                st.success("Hyperparameter tuning completed!")
-            else:
-                st.markdown("### Waiting for Hyperparameter Tuning to Start")
-                st.write("Upload a dataset and click **Start Hyperparameter Tuning**.")
-    else:
-         dataset = st.sidebar.selectbox(
-                "Choose a Dataset",
-                options=["Alzheimer", "else", "else2"],
-                index=0
-            )
-         if dataset == 'Alzheimer':
-            Data = pd.read_csv('data/alzheimers_disease_data.csv')
-            st.write("Preview of Dataset:")
-            st.dataframe(Data.head())
-            st.sidebar.subheader("Data Settings")
-            with st.sidebar.expander("Choose Features and Target", expanded=True):
-                columns = Data.columns.tolist()
-                feature_cols = st.multiselect(
-                    "Select Feature Columns", columns, default=columns[:-1]
-                )
-                target_col = st.selectbox(
-                    "Select Target Column", [""] + columns, index=len(columns)
-                )
-                
-                if not feature_cols or not target_col:
-                    st.sidebar.warning("Please select features and target to proceed.")
-                    return
-
-            # Advanced Data Settings
-            with st.sidebar.expander("Advanced Data Settings", expanded=False):
-                scaling_option = st.selectbox(
-                    "Choose Scaling Method",
-                    options=["None", "Standard Scaling", "Min-Max Scaling", "Robust Scaling"],
-                    index=0
-                )
-                apply_dim_reduction = st.checkbox("Apply Dimensionality Reduction?")
-                if apply_dim_reduction:
-                    dim_reduction_method = st.selectbox(
-                        "Dimensionality Reduction Method", options=["PCA", "t-SNE"], index=0
-                    )
-                    n_components = st.number_input(
-                        "Number of Components", min_value=1, max_value=len(feature_cols), value=2, step=1
-                    )
-
-            # Data Preprocessing
-            X = Data[feature_cols]
-            y = Data[target_col]
-            
-            # Scaling
-            if scaling_option != "None":
-                from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-
-                scalers = {
-                    "Standard Scaling": StandardScaler(),
-                    "Min-Max Scaling": MinMaxScaler(),
-                    "Robust Scaling": RobustScaler()
-                }
-                scaler = scalers[scaling_option]
-                X = scaler.fit_transform(X)
-                st.sidebar.success(f"{scaling_option} applied successfully!")
-
-            # Dimensionality Reduction
-            if apply_dim_reduction:
-                from sklearn.decomposition import PCA
-                from sklearn.manifold import TSNE
-
-                if dim_reduction_method == "PCA":
-                    dr_model = PCA(n_components=n_components)
-                elif dim_reduction_method == "t-SNE":
-                    dr_model = TSNE(n_components=n_components)
-                X = dr_model.fit_transform(X)
-                st.sidebar.success(f"{dim_reduction_method} with {n_components} components applied!")
-
-            # Train-Test Split
-            from sklearn.model_selection import train_test_split
-            X_train_scaled, X_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            data = {
-                "X_train": X_train_scaled,
-                "X_test": X_test_scaled,
-                "y_train": y_train,
-                "y_test": y_test
-            }
-
-            # Sidebar for Algorithm Selection
-            st.sidebar.header("Algorithm Configuration")
-            algo_ml = st.sidebar.selectbox(
-                "Choose a Machine Learning Algorithm",
-                options=["SGD", "Perceptron","Nearest Centroid", "Bagging Clasifier", "Decision Tree"],
-                index=0
-            )
-            algo_meta = st.sidebar.selectbox(
-                "Choose a Metaheuristic Algorithm",
-                options=["SMA", "HBO", "AO", 'GWO', "BA"],
-                index=0
-            )
-
-            # Advanced Algorithm Settings
-            with st.sidebar.expander("Advanced Algorithm Settings", expanded=False):
-                epoch = st.number_input(
-                    "Number of Epochs", min_value=1, max_value=1000, value=3, step=1
-                )
-                pop_size = st.number_input(
-                    "Population Size", min_value=10, max_value=1000, value=100, step=10
-                )
-                max_early_stop = st.number_input(
-                    "Max Early Stop", min_value=1, max_value=100, value=10, step=1
-                )
-                mode = st.selectbox(
-                    "Optimization Mode",
-                    options=["single", "thread"],
-                    index=0
-                )
-                n_worker = st.number_input(
-                    "Number of Workers", min_value=1, max_value=10, value=1, step=1
-                )
-
-            # Start Button
-            if st.sidebar.button("Start Hyperparameter Tuning"):
-                st.markdown(f"### Running with `{algo_ml}` and `{algo_meta}`")
-
-                # Hyperparameter tuning logic here (reusing previous implementation)
-                        # Hyperparameter tuning
-                model = hyperparameter_tuning(
-                    data=data, algo_ml=algo_ml, algo_meta=algo_meta,
-                    epoch=epoch, pop_size=pop_size, max_early_stop=max_early_stop,
-                    mode=mode, n_worker=n_worker
-                )
-
-                # Decode parameters and train the final model
-                param = model.problem.decode_solution(model.g_best.solution)
-                if algo_ml == 'SGD':
-                    model_fix = SGDClassifier(loss=param['loss'], alpha=param['alpha'], l1_ratio=param['l1_ratio'], penalty=param['penalty'], random_state=55)
-                if algo_ml == 'Perceptron':
-                    model_fix = Perceptron()
-                if algo_ml == 'Decision Tree':
-                    model_fix = DecisionTreeClassifier()
-                if algo_ml =='Bagging Clasifier':
-                    model_fix = BaggingClassifier()
-                if algo_ml == 'Nearest Centroid':
-                    model_fix = NearestCentroid()
-                model_fix.fit(data["X_train"], data["y_train"])
-                y_pred = model_fix.predict(data["X_test"])
-
-                # Model Evaluation Section
-                st.subheader("Model Evaluation")
-                st.markdown("#### Best Hyperparameters")
-                st.write(param)
-
-                st.markdown("#### Classification Report")
-                report = classification_report(y_test, y_pred, output_dict=True)
-                report_df = pd.DataFrame(report).transpose()
-                st.dataframe(report_df.style.format(precision=2))
-
-                st.markdown("#### Confusion Matrix")
-                conf_matrix = confusion_matrix(y_test, y_pred)
-                fig, ax = plt.subplots(figsize=(6, 4))
-                sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
-                ax.set_title("Confusion Matrix")
-                ax.set_xlabel("Predicted Labels")
-                ax.set_ylabel("True Labels")
-                st.pyplot(fig)
-
-                st.markdown(f"#### Accuracy: {accuracy_score(y_test, y_pred):.4f}")
-
-                st.success("Hyperparameter tuning completed!")
-            else:
-                st.markdown("### Waiting for Hyperparameter Tuning to Start")
-                st.write("Upload a dataset and click **Start Hyperparameter Tuning**.")
+            st.success("Hyperparameter tuning completed!")
+        else:
+            st.markdown("### Waiting for Hyperparameter Tuning to Start")
+            st.write("Upload a dataset and click **Start Hyperparameter Tuning**.")
              
 
 

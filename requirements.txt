@@ -6,3 +6,4 @@ plotly
 pyarrow
 streamlit
 matplotlib
+seaborn

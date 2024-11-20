@@ -323,7 +323,7 @@ def main():
     st.sidebar.title("Dataset Selection")
     dataset = st.sidebar.selectbox(
             "Choose a Dataset",
-            options=["Alzheimer", "else", "else2"],
+            options=["Alzheimer"],
             index=0
         )
     if dataset == 'Alzheimer':

@@ -18,3 +18,23 @@ pip install -r requirements.txt
 ```bash
 streamlit run dashboard/main.py
 ```
+
+## Teaser
+
+### Dashboard
+
+![Dashboard](./images/streamlit-1.png)
+
+![Dashboard](./images/streamlit-2.png)
+
+![Dashboard](./images/streamlit-3.png)
+
+![Dashboard](./images/streamlit-4.png)
+
+![Dashboard](./images/streamlit-5.png)
+
+### FastAPI
+
+![FastAPI](./images/fastapi-1.png)
+
+![FastAPI](./images/fastapi-2.png)

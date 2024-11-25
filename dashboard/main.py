@@ -25,6 +25,9 @@ from mealpy.human_based.HBO import OriginalHBO
 from mealpy.swarm_based.GWO import OriginalGWO
 from mealpy.swarm_based.BA import OriginalBA
 
+import xgboost as xgb
+from xgboost import XGBClassifier
+
 from typing import Optional, List, Tuple, Union, Literal, Dict
 
 np.random.seed(42)
@@ -112,6 +115,34 @@ class NearestCentroidOptimizedProblem(Problem):
         # Measure the performance
         return accuracy_score(self.data["y_test"], y_predict)
 
+class XGBoostOptimizedProblem(Problem):
+    def __init__(self, bounds=None, minmax="max", data=None, **kwargs):
+        self.data = data
+        super().__init__(bounds, minmax, **kwargs)
+
+    def obj_func(self, x):
+        x_decoded = self.decode_solution(x)
+        n_estimators = x_decoded["n_estimators"]
+        max_depth = x_decoded["max_depth"]
+        learning_rate = x_decoded["learning_rate"]
+        min_child_weight = x_decoded["min_child_weight"]
+        subsample = x_decoded["subsample"]
+        colsample_bytree = x_decoded["colsample_bytree"]
+        
+        xgb_classifier = XGBClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=learning_rate,
+            min_child_weight=min_child_weight,
+            subsample=subsample,
+            colsample_bytree=colsample_bytree,
+            random_state=55
+        )
+        
+        xgb_classifier.fit(self.data["X_train"], self.data["y_train"])
+        y_predict = xgb_classifier.predict(self.data["X_test"])
+        return accuracy_score(self.data["y_test"], y_predict)
+
 class CustomOptimizer(Optimizer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -129,6 +160,7 @@ class CustomOptimizer(Optimizer):
         self.explor = []
         self.exploi = []
         self.ddiversity = []
+        
     def track_optimize_step(self, pop: List[Agent] = None, epoch: int = None, runtime: float = None) -> None:
         if self.problem.save_population:
             self.history.list_population.append(CustomOptimizer.duplicate_pop(pop))
@@ -294,7 +326,18 @@ def hyperparameter_tuning(data, algo_ml, algo_meta, epoch=100, pop_size=100, max
                     ]
         problem = NearestCentroidOptimizedProblem(bounds=my_bounds, minmax="max", data=data,         
                                       verbose=True, save_population=True)  
-
+       
+    if algo_ml == 'XGBoost':
+        my_bounds = [
+            IntegerVar(lb=10, ub=300, name="n_estimators"),
+            IntegerVar(lb=1, ub=15, name="max_depth"),
+            FloatVar(lb=0.01, ub=1, name="learning_rate"),
+            IntegerVar(lb=1, ub=10, name="min_child_weight"),
+            FloatVar(lb=0.5, ub=1, name="subsample"),
+            FloatVar(lb=0.5, ub=1, name="colsample_bytree")
+        ]
+        problem = XGBoostOptimizedProblem(bounds=my_bounds, minmax="max", data=data,         
+                                      verbose=True, save_population=True)
 
     if algo_meta == 'AO':
         model = CustomOriginalAO(epoch=epoch, pop_size=pop_size)
@@ -382,9 +425,9 @@ def main():
         # Sidebar for Algorithm Selection
         st.sidebar.header("Algorithm Configuration")
         algo_ml = st.sidebar.selectbox(
-            "Choose a Machine Learning Algorithm",
-            options=["SGD", "Perceptron","Nearest Centroid", "Bagging Clasifier", "Decision Tree"],
-            index=0
+        "Choose a Machine Learning Algorithm",
+        options=["SGD", "Perceptron", "Nearest Centroid", "Bagging Clasifier", "Decision Tree", "XGBoost"],
+        index=0
         )
         algo_meta = st.sidebar.selectbox(
             "Choose a Metaheuristic Algorithm",
@@ -436,6 +479,17 @@ def main():
                 model_fix = BaggingClassifier()
             if algo_ml == 'Nearest Centroid':
                 model_fix = NearestCentroid()
+            if algo_ml == 'XGBoost':
+                model_fix = XGBClassifier(
+                    n_estimators=param['n_estimators'],
+                    max_depth=param['max_depth'],
+                    learning_rate=param['learning_rate'],
+                    min_child_weight=param['min_child_weight'],
+                    subsample=param['subsample'],
+                    colsample_bytree=param['colsample_bytree'],
+                    random_state=55
+                )
+                
             model_fix.fit(data["X_train"], data["y_train"])
             y_pred = model_fix.predict(data["X_test"])
 

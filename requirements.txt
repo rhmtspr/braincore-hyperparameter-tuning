@@ -7,3 +7,6 @@ pyarrow
 streamlit
 matplotlib
 seaborn
+fastapi
+pydantic
+xgboost

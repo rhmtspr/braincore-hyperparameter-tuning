@@ -458,6 +458,50 @@ def main():
         # Start Button
         if st.sidebar.button("Start Hyperparameter Tuning"):
             st.markdown(f"### Running with `{algo_ml}` and `{algo_meta}`")
+            
+                # Train with default parameters first
+            st.markdown("### Default Parameters Performance")
+            
+            # Select and train the default model based on the chosen algorithm
+            if algo_ml == 'SGD':
+                default_model = SGDClassifier(random_state=55)
+            elif algo_ml == 'Perceptron':
+                default_model = Perceptron(random_state=55)
+            elif algo_ml == 'Decision Tree':
+                default_model = DecisionTreeClassifier(random_state=55)
+            elif algo_ml == 'Bagging Clasifier':
+                default_model = BaggingClassifier(random_state=55)
+            elif algo_ml == 'Nearest Centroid':
+                default_model = NearestCentroid()
+            elif algo_ml == 'XGBoost':
+                default_model = XGBClassifier(random_state=55)
+            
+            # Fit and predict with default parameters
+            default_model.fit(data["X_train"], data["y_train"])
+            y_pred_default = default_model.predict(data["X_test"])
+            
+            # Default Model Evaluation
+            st.markdown("#### Default Parameters - Classification Report")
+            default_report = classification_report(y_test, y_pred_default, output_dict=True)
+            default_report_df = pd.DataFrame(default_report).transpose()
+            st.dataframe(default_report_df.style.format(precision=2))
+
+            st.markdown("#### Default Parameters - Confusion Matrix")
+            default_conf_matrix = confusion_matrix(y_test, y_pred_default)
+            fig_default, ax_default = plt.subplots(figsize=(6, 4))
+            sns.heatmap(default_conf_matrix, annot=True, fmt='d', cmap='Blues', 
+                        xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
+            ax_default.set_title("Confusion Matrix - Default Parameters")
+            ax_default.set_xlabel("Predicted Labels")
+            ax_default.set_ylabel("True Labels")
+            st.pyplot(fig_default)
+
+            st.markdown(f"#### Default Parameters - Accuracy: {accuracy_score(y_test, y_pred_default):.4f}")
+
+            # Horizontal line to separate default and tuned results
+            st.markdown("---")
+            
+            st.markdown("### Tuning Hyperparameters")
 
             # Hyperparameter tuning logic here (reusing previous implementation)
                     # Hyperparameter tuning

@@ -23,15 +23,7 @@ streamlit run dashboard/main.py
 
 ### Dashboard
 
-![Dashboard](./images/streamlit-1.png)
-
-![Dashboard](./images/streamlit-2.png)
-
-![Dashboard](./images/streamlit-3.png)
-
-![Dashboard](./images/streamlit-4.png)
-
-![Dashboard](./images/streamlit-5.png)
+![Dashboard](./images/banner.png)
 
 ### FastAPI
 

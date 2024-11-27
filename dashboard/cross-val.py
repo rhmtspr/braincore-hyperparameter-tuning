@@ -7,7 +7,7 @@ import pandas as pd
 import random
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import BaggingClassifier
 from sklearn.linear_model import SGDClassifier, Perceptron
@@ -43,10 +43,24 @@ class SGDOptimizedProblem(Problem):
     def obj_func(self, x):
         x_decoded = self.decode_solution(x)
         penalty, alpha, l1_ratio, loss = x_decoded["penalty"], x_decoded["alpha"], x_decoded["l1_ratio"], x_decoded["loss"]
-        sgd = SGDClassifier(penalty=penalty, alpha=alpha, l1_ratio=l1_ratio, loss=loss, random_state=42)
-        sgd.fit(self.data["X_train"], self.data["y_train"])
-        y_predict = sgd.predict(self.data["X_test"])
-        return accuracy_score(self.data["y_test"], y_predict)
+        sgd = SGDClassifier(
+            penalty=penalty, 
+            alpha=alpha, 
+            l1_ratio=l1_ratio, 
+            loss=loss, 
+            random_state=42
+        )
+        
+        # Use cross-validation to get a more robust performance estimate
+        cv_scores = cross_val_score(
+            sgd, 
+            self.data["X_train"], 
+            self.data["y_train"], 
+            cv=5,  # 5-fold cross-validation
+            scoring='accuracy'
+        )
+        
+        return np.mean(cv_scores)
 
 class BaggingOptimizedProblem(Problem):
     def __init__(self, bounds=None, minmax="max", data=None, **kwargs):
@@ -56,13 +70,24 @@ class BaggingOptimizedProblem(Problem):
     def obj_func(self, x):
         x_decoded = self.decode_solution(x)
         n_estimators_paras, max_features_paras, bootstrap_paras, bootstrap_features_paras= x_decoded["n_estimators"], x_decoded["max_features"], x_decoded["bootstrap"], x_decoded["bootstrap_features"]
-        bagging = BaggingClassifier(n_estimators=n_estimators_paras, max_features=max_features_paras, bootstrap=bootstrap_paras, bootstrap_features=bootstrap_features_paras)
-        # Fit the bagging
-        bagging.fit(self.data["X_train"], self.data["y_train"])
-        # Make the predictions
-        y_predict = bagging.predict(self.data["X_test"])
-        # Measure the performance
-        return accuracy_score(self.data["y_test"], y_predict)
+        bagging = BaggingClassifier(
+            n_estimators=n_estimators_paras, 
+            max_features=max_features_paras, 
+            bootstrap=bootstrap_paras, 
+            bootstrap_features=bootstrap_features_paras,
+            random_state=42
+        )
+        
+        # Use cross-validation
+        cv_scores = cross_val_score(
+            bagging, 
+            self.data["X_train"], 
+            self.data["y_train"], 
+            cv=5,
+            scoring='accuracy'
+        )
+        
+        return np.mean(cv_scores)
 
 class DecisionTreeOptimizedProblem(Problem):
     def __init__(self, bounds=None, minmax="max", data=None, **kwargs):
@@ -74,14 +99,24 @@ class DecisionTreeOptimizedProblem(Problem):
         min_samples_leaf, min_samples_split, max_features, criterion = x_decoded["min_samples_leaf"], x_decoded["min_samples_split"], x_decoded['max_features'], x_decoded['criterion']
         if max_features == "None":
             max_features = None
-        decision_tree = DecisionTreeClassifier(min_samples_leaf= min_samples_leaf, min_samples_split= min_samples_split, max_features= max_features, criterion = criterion,
-                                    random_state=42)
-        # Fit the model
-        decision_tree.fit(self.data["X_train"], self.data["y_train"])
-        # Make the predictions
-        y_predict = decision_tree.predict(self.data["X_test"])
-        # Measure the performance
-        return accuracy_score(self.data["y_test"], y_predict)
+        decision_tree = DecisionTreeClassifier(
+            min_samples_leaf=min_samples_leaf, 
+            min_samples_split=min_samples_split, 
+            max_features=max_features, 
+            criterion=criterion,
+            random_state=42
+        )
+        
+        # Use cross-validation
+        cv_scores = cross_val_score(
+            decision_tree, 
+            self.data["X_train"], 
+            self.data["y_train"], 
+            cv=5,
+            scoring='accuracy'
+        )
+        
+        return np.mean(cv_scores)
 
 class PerceptronOptimizedProblem(Problem):
     def __init__(self, bounds=None, minmax="max", data=None, **kwargs):
@@ -91,13 +126,23 @@ class PerceptronOptimizedProblem(Problem):
     def obj_func(self, x):
         x_decoded = self.decode_solution(x)
         penalty, alpha, l1_ratio= x_decoded["penalty"], x_decoded["alpha"], x_decoded["l1_ratio"]
-        perceptron = Perceptron(penalty=penalty, alpha=alpha,l1_ratio=l1_ratio)
-        # Fit the model
-        perceptron.fit(self.data["X_train"], self.data["y_train"])
-        # Make the predictions
-        y_predict = perceptron.predict(self.data["X_test"])
-        # Measure the performance
-        return accuracy_score(self.data["y_test"], y_predict)
+        perceptron = Perceptron(
+            penalty=penalty, 
+            alpha=alpha, 
+            l1_ratio=l1_ratio,
+            random_state=42
+        )
+        
+        # Use cross-validation
+        cv_scores = cross_val_score(
+            perceptron, 
+            self.data["X_train"], 
+            self.data["y_train"], 
+            cv=5,
+            scoring='accuracy'
+        )
+        
+        return np.mean(cv_scores)
 
 class NearestCentroidOptimizedProblem(Problem):
     def __init__(self, bounds=None, minmax="max", data=None, **kwargs):
@@ -107,13 +152,21 @@ class NearestCentroidOptimizedProblem(Problem):
     def obj_func(self, x):
         x_decoded = self.decode_solution(x)
         shrink_threshold, metric = x_decoded["shrink_threshold"], x_decoded["metric"],
-        nearest = NearestCentroid(shrink_threshold=shrink_threshold,metric=metric)
-        # Fit the model
-        nearest.fit(self.data["X_train"], self.data["y_train"])
-        # Make the predictions
-        y_predict = nearest.predict(self.data["X_test"])
-        # Measure the performance
-        return accuracy_score(self.data["y_test"], y_predict)
+        nearest = NearestCentroid(
+            shrink_threshold=shrink_threshold,
+            metric=metric
+        )
+        
+        # Use cross-validation
+        cv_scores = cross_val_score(
+            nearest, 
+            self.data["X_train"], 
+            self.data["y_train"], 
+            cv=5,
+            scoring='accuracy'
+        )
+        
+        return np.mean(cv_scores)
 
 class XGBoostOptimizedProblem(Problem):
     def __init__(self, bounds=None, minmax="max", data=None, **kwargs):
@@ -139,9 +192,16 @@ class XGBoostOptimizedProblem(Problem):
             random_state=42
         )
         
-        xgb_classifier.fit(self.data["X_train"], self.data["y_train"])
-        y_predict = xgb_classifier.predict(self.data["X_test"])
-        return accuracy_score(self.data["y_test"], y_predict)
+        # Use cross-validation
+        cv_scores = cross_val_score(
+            xgb_classifier, 
+            self.data["X_train"], 
+            self.data["y_train"], 
+            cv=5,
+            scoring='accuracy'
+        )
+        
+        return np.mean(cv_scores)
 
 class CustomOptimizer(Optimizer):
     def __init__(self, **kwargs):
@@ -362,17 +422,61 @@ def hyperparameter_tuning(data, algo_ml, algo_meta, epoch=100, pop_size=100, max
 
 
 def main():
-    st.title("Machine Learning Hyperparameter Tuning")
-    st.sidebar.title("Dataset Selection")
+    st.set_page_config(
+        page_title="ML Hyperparameter Tuning",
+        page_icon="🔍",
+        layout="wide"
+    )
+    
+    st.title("🤖 Machine Learning Hyperparameter Tuning")
+    
+    # Introduction
+    st.markdown("""
+    ### Welcome to the ML Hyperparameter Tuning Dashboard!
+
+    This interactive tool helps you optimize machine learning model performance through advanced hyperparameter tuning techniques. 
+    
+    🔬 **How It Works:**
+    1. Choose a dataset
+    2. Define Features and Target
+    3. Select machine learning and metaheuristic algorithms
+    4. Customize hyperparameter tuning settings
+    5. Compare default and optimized model performance
+    """)
+    
+    st.sidebar.title("🛠️ Configuration Panel")
+    
+    st.sidebar.info("""
+    **What is Hyperparameter Tuning?**
+    - Hyperparameters are settings that aren't learned from the data
+    - Tuning helps find the best configuration to improve model performance
+    - We use metaheuristic algorithms to efficiently search the hyperparameter space
+    """)
+    
     dataset = st.sidebar.selectbox(
             "Choose a Dataset",
             options=["Alzheimer"],
-            index=0
+            index=0,
+            help="Select the dataset for model training and evaluation"
         )
+    
     if dataset == 'Alzheimer':
         Data = pd.read_csv('data/alzheimers_disease_data.csv')
-        st.write("Preview of Dataset:")
-        st.dataframe(Data.head())
+        # st.write("Preview of Dataset:")
+        # st.dataframe(Data.head())
+        
+        # Dataset Preview Section
+        with st.expander("📊 Dataset Preview", expanded=True):
+            st.markdown("### Dataset Insights")
+            st.write("First few rows of the Alzheimer's Disease dataset:")
+            st.dataframe(Data.head())
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Samples", len(Data), help="Total number of data points in the dataset")
+            with col2:
+                st.metric("Total Features", len(Data.columns)-1, help="Number of feature columns in the dataset")
+        
         st.sidebar.subheader("Data Settings")
         with st.sidebar.expander("Choose Features and Target", expanded=True):
             columns = Data.columns.tolist()
@@ -455,12 +559,133 @@ def main():
                 "Number of Workers", min_value=1, max_value=10, value=1, step=1
             )
 
+        def display_chart_descriptions(model):
+            # Create a tabbed interface for different insights
+            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                "🏆 Fitness Progress", 
+                "🔍 Exploration vs Exploitation", 
+                "⏱️ Runtime Analysis", 
+                "🌈 Diversity Measurement", 
+                "🔬 Best Hyperparameters"
+            ])
+
+            with tab1:
+                st.markdown("## 🏆 Fitness Progress Insights")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("### Current Best Fitness")
+                    st.markdown("""
+                    Tracks the best fitness score of the current population in each iteration.
+                    - 📈 Shows how quickly the current population improves
+                    - 🎯 Indicates the model's learning efficiency
+                    - Higher values (closer to 1) represent better performance
+                    """)
+
+                with col2:
+                    st.markdown("### Global Best Fitness")
+                    st.markdown("""
+                    Represents the overall best fitness score found across all iterations.
+                    - 🌟 Tracks the global optimum discovered
+                    - 🚀 Shows the algorithm's ability to find optimal solutions
+                    - Convergence to a stable high value indicates successful optimization
+                    """)
+
+            with tab2:
+                st.markdown("## 🔍 Exploration vs Exploitation Dynamics")
+                st.markdown("""
+                ### Understanding the Search Strategy
+                - **Exploration (🔎)**: Searching new areas of the solution space
+                - **Exploitation (🎯)**: Refining solutions around promising regions
+                
+                #### Key Insights:
+                - Balance between exploration and exploitation is crucial
+                - Early stages: More exploration (higher percentage)
+                - Later stages: More exploitation (higher percentage)
+                """)
+                
+                st.markdown("""
+                ##### What This Means:
+                - 🌍 Exploration helps prevent getting stuck in local optima
+                - 🎳 Exploitation helps fine-tune the best solutions found
+                - The changing percentages show the algorithm's adaptive search strategy
+                """)
+
+            with tab3:
+                st.markdown("## ⏱️ Runtime Performance Analysis")
+                st.markdown("""
+                ### Computational Efficiency Insights
+                - 🕒 Tracks the time taken for each optimization iteration
+                - 🚀 Helps understand computational complexity
+                
+                #### What to Look For:
+                - Consistent runtime suggests stable algorithm performance
+                - Sudden spikes might indicate complex solution spaces
+                - Helps in comparing different metaheuristic algorithms
+                """)
+
+            with tab4:
+                st.markdown("## 🌈 Diversity Measurement")
+                st.markdown("""
+                ### Population Diversity Tracking
+                - 🧬 Measures the spread of solutions in the search space
+                - 🔬 Indicates how different the solutions are from each other
+                
+                #### Diversity Insights:
+                - High diversity: Exploring many different solution regions
+                - Low diversity: Focusing on a specific solution area
+                - Crucial for avoiding premature convergence
+                """)
+
+            with tab5:
+                st.markdown("## 🔬 Best Hyperparameters Breakdown")
+                
+                # Retrieve and display best parameters
+                best_params = model.problem.decode_solution(model.g_best.solution)
+                
+                st.markdown("### Optimal Configuration Found")
+                
+                # Create an expandable section for each parameter
+                for param, value in best_params.items():
+                    with st.expander(f"🔑 {param.replace('_', ' ').title()}"):
+                        st.write(f"**Value:** {value}")
+                        
+                        # Add context-specific descriptions
+                        param_descriptions = {
+                            "Alpha": "Regularization strength. Controls model complexity and prevents overfitting.",
+                            "Loss": "The loss function determines how the model penalizes prediction errors.",
+                            "Penalty": "Type of regularization applied to prevent model from becoming too complex.",
+                            "L1_Ratio": "Balance between L1 and L2 regularization (useful for feature selection).",
+                            "N_Estimators": "Number of trees or iterations in ensemble methods.",
+                            "Max_Depth": "Maximum depth of decision trees, controlling model complexity.",
+                            "Learning_Rate": "Step size at each iteration while moving toward a minimum of a loss function.",
+                            "Subsample": "Fraction of samples used for fitting individual trees.",
+                            "Colsample_Bytree": "Fraction of features used for each tree construction.",
+                            "Max_Features": "Maximum number of features considered when splitting a node (e.g., 'sqrt', 'log2').",
+                            "Min_Samples_Leaf": "Minimum number of samples required to be at a leaf node.",
+                            "Min_Samples_Split": "Minimum number of samples required to split an internal node.",
+                            "Criterion": "Function to measure the quality of a split (e.g., 'gini', 'entropy', 'log_loss').",
+                            "Bootstrap": "Whether bootstrap sampling is used when building trees.",
+                            "Bootstrap Features": "Whether features are sampled with replacement when building trees.",
+                            "Shrink_Threshold": "Threshold for shrinking centroids in Nearest Centroid classification.",
+                            "Metric": "Distance metric used for Nearest Centroid classification (e.g., 'euclidean', 'manhattan').",
+                            "Min_Child_Weight": "Minimum sum of instance weights (hessian) needed in a child node (XGBoost)."
+                        }
+                        
+                        # Try to find and display a description
+                        description = next((desc for key, desc in param_descriptions.items() if key.lower() in param.lower()), "No additional context available.")
+                        st.markdown(f"**Context:** {description}")
+
+            return best_params
+        
         # Start Button
         if st.sidebar.button("Start Hyperparameter Tuning"):
-            st.markdown(f"### Running with `{algo_ml}` and `{algo_meta}`")
-            
-                # Train with default parameters first
-            st.markdown("### Default Parameters Performance")
+            # Default Parameters Performance Section
+            st.markdown("""
+            ### 🔍 Default Parameters Performance
+            Before hyperparameter tuning, we evaluate the model's performance using default settings.
+            This helps us understand the baseline performance and see how much improvement we can achieve.
+            """)
             
             # Select and train the default model based on the chosen algorithm
             if algo_ml == 'SGD':
@@ -481,12 +706,26 @@ def main():
             y_pred_default = default_model.predict(data["X_test"])
             
             # Default Model Evaluation
-            st.markdown("#### Default Parameters - Classification Report")
+            # Classification Report Section
+            st.markdown("""
+            #### 📄 Classification Report
+            A comprehensive report showing precision, recall, and F1-score for each class.
+            - **Precision**: Accuracy of positive predictions
+            - **Recall**: Proportion of actual positives correctly identified
+            - **F1-Score**: Harmonic mean of precision and recall
+            """)
             default_report = classification_report(y_test, y_pred_default, output_dict=True)
             default_report_df = pd.DataFrame(default_report).transpose()
             st.dataframe(default_report_df.style.format(precision=2))
 
-            st.markdown("#### Default Parameters - Confusion Matrix")
+
+            # Confusion Matrix Section
+            st.markdown("""
+            #### 📊 Confusion Matrix
+            Visualizes the model's prediction performance:
+            - Diagonal values show correct predictions
+            - Off-diagonal values indicate misclassifications
+            """)
             default_conf_matrix = confusion_matrix(y_test, y_pred_default)
             fig_default, ax_default = plt.subplots(figsize=(6, 4))
             sns.heatmap(default_conf_matrix, annot=True, fmt='d', cmap='Blues', 
@@ -497,11 +736,22 @@ def main():
             st.pyplot(fig_default)
 
             st.markdown(f"#### Default Parameters - Accuracy: {accuracy_score(y_test, y_pred_default):.4f}")
-
+            
             # Horizontal line to separate default and tuned results
             st.markdown("---")
             
-            st.markdown("### Tuning Hyperparameters")
+            # HYPERPARAMETER TUNING START
+            st.markdown(f"### Tuning Hyperparameter with `{algo_ml}` and `{algo_meta}`")
+            
+            st.sidebar.markdown("### 🧠 Metaheuristic Algorithms")
+            st.sidebar.info("""
+            Metaheuristic algorithms mimic natural phenomena to find optimal solutions:
+            - **SMA**: Slime Mould Algorithm (nature-inspired)
+            - **HBO**: Hunger-Based Optimization
+            - **AO**: Arithmetic Optimization Algorithm
+            - **GWO**: Grey Wolf Optimizer
+            - **BA**: Bat Algorithm
+            """)
 
             # Hyperparameter tuning logic here (reusing previous implementation)
                     # Hyperparameter tuning
@@ -510,6 +760,12 @@ def main():
                 epoch=epoch, pop_size=pop_size, max_early_stop=max_early_stop,
                 mode=mode, n_worker=n_worker
             )
+            
+            # Display chart descriptions and additional insights
+            best_params = display_chart_descriptions(model)
+             
+            # Horizontal line to separate default and tuned results
+            st.markdown("---")
 
             # Decode parameters and train the final model
             param = model.problem.decode_solution(model.g_best.solution)
@@ -558,10 +814,11 @@ def main():
 
             st.markdown(f"#### Accuracy: {accuracy_score(y_test, y_pred):.4f}")
 
-            st.success("Hyperparameter tuning completed!")
+            st.toast("Hyperparameter tuning completed!", icon='🎉')
+            st.success("Hyperparameter tuning completed!", icon='🎉')
         else:
             st.markdown("### Waiting for Hyperparameter Tuning to Start")
-            st.write("Upload a dataset and click **Start Hyperparameter Tuning**.")
+            st.write("Click **Start Hyperparameter Tuning**.")
              
 
 

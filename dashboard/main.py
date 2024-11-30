@@ -784,13 +784,16 @@ def main():
             if algo_ml == 'SGD':
                 model_fix = SGDClassifier(loss=param['loss'], alpha=param['alpha'], l1_ratio=param['l1_ratio'], penalty=param['penalty'], random_state=42)
             if algo_ml == 'Perceptron':
-                model_fix = Perceptron()
+                model_fix = Perceptron(penalty=param['penalty'], alpha=param['alpha'], l1_ratio=param['l1_ratio'])
             if algo_ml == 'Decision Tree':
-                model_fix = DecisionTreeClassifier()
+                if param['max_features'] == "None":
+                    max_features = None
+                model_fix = DecisionTreeClassifier(min_samples_leaf=param['min_samples_leaf'], min_samples_split= param['min_samples_split'], max_features= max_features, criterion = param['criterion'],
+                                                    random_state=42)
             if algo_ml =='Bagging Clasifier':
-                model_fix = BaggingClassifier()
+                model_fix = BaggingClassifier(n_estimators=param['n_estimators'], max_features=param['max_features'], bootstrap=param['bootstrap'], bootstrap_features=param['bootstrap_features'])
             if algo_ml == 'Nearest Centroid':
-                model_fix = NearestCentroid()
+                model_fix = NearestCentroid(shrink_threshold=param['shrink_threshold'],metric=param['metric'])
             if algo_ml == 'XGBoost':
                 model_fix = XGBClassifier(
                     n_estimators=param['n_estimators'],

@@ -73,6 +73,7 @@ class DecisionTreeOptimizedProblem(Problem):
             max_features = None
         decision_tree = DecisionTreeClassifier(min_samples_leaf= min_samples_leaf, min_samples_split= min_samples_split, max_features= max_features, criterion = criterion,
                                     random_state=42)
+        decision_tree.fit(self.data["X_train"], self.data["y_train"])
         y_predict = decision_tree.predict(self.data["X_test"])
         return accuracy_score(self.data["y_test"], y_predict)
 

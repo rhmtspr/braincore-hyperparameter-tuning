@@ -443,10 +443,11 @@ def main():
     """)
     
     dataset = st.sidebar.selectbox(
-            "Choose a Dataset",
+            "Choose a Dataset (future works)",
             options=["Alzheimer"],
             index=0,
-            help="Select the dataset for model training and evaluation"
+            help="Select the dataset for model training and evaluation",
+            disabled=True
         )
     
     if dataset == 'Alzheimer':
@@ -483,13 +484,27 @@ def main():
                 "Select Feature Columns", columns, default=columns[:-1], help="Features used for model training"
             )
             target_col = st.selectbox(
-                "Select Target Column", [""] + columns, index=len(columns), help="Target variable to predict"
+                "Select Target Column", [""] + columns, index=len(columns)-1, help="Target variable to predict"
             )
             
             if not feature_cols or not target_col:
                 st.sidebar.warning("Please select features and target to proceed.")
                 return
 
+            # Add a class count check
+            unique_classes = Data[target_col].nunique()
+            if unique_classes < 2:
+                st.sidebar.error(f"Error: Target column must have at least 2 classes. Current classes: {unique_classes}")
+                return
+
+            # Optional: Additional check for class distribution
+            class_distribution = Data[target_col].value_counts()
+            # st.sidebar.info("Class Distribution:\n" + class_distribution.to_string())
+
+            if any(class_distribution < 5):  # Optional: Warning if any class has very few samples
+                st.sidebar.error("Error: Some classes have very few samples, It will be an error occured. Please use other target features")
+                return
+            
             st.subheader("Data Preprocessing")
             scaling_option = st.selectbox(
                 "Scaling Technique", 
@@ -693,6 +708,26 @@ def main():
         
         # Start Button
         if st.sidebar.button("Start Hyperparameter Tuning"):
+            default_accuracy = 0.0
+            tuned_accuracy = 0.0
+            # add comparison acccuracy between default and tuned model
+            st.markdown("### 📊 Model Performance Comparison")
+            comparison_col1, comparison_col2 = st.columns(2)
+
+            with comparison_col1:
+                st.markdown("#### 🔹 Default Model", help="Model performance before hyperparameter tuning.")
+                default_accuracy_placeholder = st.success(f"##### Accuracy: {default_accuracy:.4f}")
+
+            with comparison_col2:
+                st.markdown("#### 🔸 Tuned Model", help="Model performance after hyperparameter tuning.")
+                tuned_accuracy_placeholder = st.success(f"##### Accuracy: {tuned_accuracy:.4f}")
+
+            # Improvement placeholder
+            improvement_placeholder = st.warning("waiting for optimization results...")
+                
+            # Horizontal line to separate default and tuned results
+            st.markdown("---")
+            
             # Default Parameters Performance Section
             st.markdown("""
             ### 🔍 Default Parameters Performance
@@ -719,7 +754,7 @@ def main():
             y_pred_default = default_model.predict(data["X_test"])
             
             # Default Model Evaluation
-             # Classification Report Section
+            # Classification Report Section
             st.markdown("""
             #### 📄 Classification Report
             A comprehensive report showing precision, recall, and F1-score for each class.
@@ -742,21 +777,32 @@ def main():
 
             # Confusion Matrix Section
             st.markdown("""
-            #### 📊 Confusion Matrix
-            Visualizes the model's prediction performance:
-            - Diagonal values show correct predictions
-            - Off-diagonal values indicate misclassifications
-            """)
-            default_conf_matrix = confusion_matrix(y_test, y_pred_default)
-            fig_default, ax_default = plt.subplots(figsize=(6, 4))
-            sns.heatmap(default_conf_matrix, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
-            ax_default.set_title("Confusion Matrix - Default Parameters")
-            ax_default.set_xlabel("Predicted Labels")
-            ax_default.set_ylabel("True Labels")
-            st.pyplot(fig_default)
-
-            st.markdown(f"#### Accuracy (Default Parameters): {accuracy_score(y_test, y_pred_default):.4f}", help="Accuracy may differ from classification report due to different calculation methods, averaging techniques, and class distributions.")
+                        #### 📊 Confusion Matrix
+                        Visualizes the model's prediction performance:
+                        """)
+            cm_col_1, cm_col_2 = st.columns(2)
+            with cm_col_1:
+                default_conf_matrix = confusion_matrix(y_test, y_pred_default)
+                fig_default, ax_default = plt.subplots(figsize=(6, 4))
+                sns.heatmap(default_conf_matrix, annot=True, fmt='d', cmap='Blues', 
+                            xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
+                ax_default.set_title("Confusion Matrix - Default Parameters")
+                ax_default.set_xlabel("Predicted Labels")
+                ax_default.set_ylabel("True Labels")
+                st.pyplot(fig_default)
+                
+            with cm_col_2:
+                st.markdown("""
+                How to Read a Confusion Matrix:
+                - Diagonal values show correct predictions
+                - Off-diagonal values indicate misclassifications
+                - Higher values on the diagonal are better
+                - Ideally, the matrix should be diagonal (all correct predictions)
+                """)
+                
+                default_accuracy = accuracy_score(y_test, y_pred_default)
+                st.markdown("#### Your Default Model's Performance", help="Accuracy may differ from classification report due to different calculation methods, averaging techniques, and class distributions.")
+                st.success(f"##### Accuracy: {default_accuracy:.4f}")
             
             # Horizontal line to separate default and tuned results
             st.markdown("---")
@@ -806,24 +852,44 @@ def main():
 
             # Model Evaluation Section
             st.subheader("Model Evaluation")
-            st.markdown("#### Best Hyperparameters")
-            st.write(param)
+            tuned_model_col1, tuned_model_col2 = st.columns(2)
+            with tuned_model_col1:
+                st.markdown("#### Classification Report")
+                report = classification_report(y_test, y_pred, output_dict=True)
+                report_df = pd.DataFrame(report).transpose()
+                st.dataframe(report_df.style.format(precision=2))
 
-            st.markdown("#### Classification Report")
-            report = classification_report(y_test, y_pred, output_dict=True)
-            report_df = pd.DataFrame(report).transpose()
-            st.dataframe(report_df.style.format(precision=2))
+            with tuned_model_col2:
+                st.markdown("#### Best Hyperparameters")
+                st.write(param)
 
-            st.markdown("#### Confusion Matrix")
-            conf_matrix = confusion_matrix(y_test, y_pred)
-            fig, ax = plt.subplots(figsize=(6, 4))
-            sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
-            ax.set_title("Confusion Matrix")
-            ax.set_xlabel("Predicted Labels")
-            ax.set_ylabel("True Labels")
-            st.pyplot(fig)
+            new_tuned_model_col1, new_tuned_model_col2 = st.columns(2)
+            with new_tuned_model_col1:
+                st.markdown("#### Confusion Matrix")
+                conf_matrix = confusion_matrix(y_test, y_pred)
+                fig, ax = plt.subplots(figsize=(6, 4))
+                sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=["Class 0", "Class 1"], yticklabels=["Class 0", "Class 1"])
+                ax.set_title("Confusion Matrix")
+                ax.set_xlabel("Predicted Labels")
+                ax.set_ylabel("True Labels")
+                st.pyplot(fig)
+                
+            with new_tuned_model_col2:
+                st.markdown("#### Your Tuned Model's Performance")
+                tuned_accuracy = accuracy_score(y_test, y_pred)
+                st.success(f"##### Accuracy: {tuned_accuracy:.4f}")
 
-            st.markdown(f"#### Accuracy  (Tuned Model): {accuracy_score(y_test, y_pred):.4f}")
+            
+            # Update placeholders with actual values
+            default_accuracy_placeholder.success(f"##### Accuracy: {default_accuracy:.4f}")
+            tuned_accuracy_placeholder.success(f"##### Accuracy: {tuned_accuracy:.4f}")
+
+            # Calculate and display improvement
+            improvement = ((tuned_accuracy - default_accuracy) / default_accuracy) * 100
+            if improvement > 0:
+                improvement_placeholder.markdown(f"*Accuracy Improved From {default_accuracy:.4f} to {tuned_accuracy:.4f}*")
+            else:
+                improvement_placeholder.warning(f"#### 📉 No Significant Improvement (Change: {improvement:.2f}%)")
 
             st.toast("Hyperparameter tuning completed!", icon='🎉')
             st.success("Hyperparameter tuning completed!", icon='🎉')

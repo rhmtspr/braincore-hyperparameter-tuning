@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import seaborn as sns
 import streamlit as st
+from streamlit_option_menu import option_menu
 import numpy as np
 import pandas as pd
 import random
@@ -410,6 +411,20 @@ def hyperparameter_tuning(data, algo_ml, algo_meta, epoch=100, pop_size=100, max
 
 
 def main():
+    # selected = option_menu(
+    #     menu_title=None,
+    #     options=['Home', 'Account'],
+    #     icons=['house', 'user'],
+    #     menu_icon='cast',
+    #     default_index=0,
+    #     orientation='horizontal'
+    # )
+
+    # if selected == 'Home':
+    #     st.switch_page('main.py')
+    # if selected == 'Account':
+    #     st.switch_page('account.py')
+
     st.set_page_config(
         page_title="ML Hyperparameter Tuning",
         page_icon="🔬",
@@ -904,4 +919,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if 'user_info' not in st.session_state:
+        st.header('Access is forbidden')
+        st.markdown('##### Please login first.')
+    else:
+        main()
